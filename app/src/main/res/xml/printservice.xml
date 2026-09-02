@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<print-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="dev.mariolange.brotherhl6180dw.SettingsActivity"
+    android:addPrintersActivity="dev.mariolange.brotherhl6180dw.SettingsActivity" />

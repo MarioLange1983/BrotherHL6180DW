@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">BrotherHL6180DW</string>
+    <string name="settings_title">Printer Settings</string>
+    <string name="ip_address_hint">Printer IP (e.g. 192.168.10.160)</string>
+    <string name="port_hint">Port (e.g. 80 or 631)</string>
+    <string name="save_settings">Save Settings</string>
+    <string name="scan_subnet">Scan Subnet</string>
+    <string name="test_connection">Test Connection</string>
+    <string name="scanning">Scanning&#8230;</string>
+    <string name="no_devices_found">No printers found.</string>
+    <string name="connection_success">Connection successful!</string>
+    <string name="connection_failed">Connection failed.</string>
+    <string name="printer_name">Brother HL-6180DW</string>
+    <string name="printer_description">Monochrome Laser Printer</string>
+    <string name="port_default">80</string>
+    <string name="print_test_page">Print Test Page</string>
+    <string name="found_printers">Found Printers:</string>
+    <string name="open_web_interface">Open Web Interface</string>
+    <string name="testing">Testing&#8230;</string>
+    <string name="test_print_result">Print Result: %1$d</string>
+    <string name="test_print_error">Print Failed: %1$s</string>
+    <string name="test_page_text">Brother HL-6180DW Test Page\nSuccessfully connected via IPP!\n</string>
+</resources>
