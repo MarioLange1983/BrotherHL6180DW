@@ -8,10 +8,12 @@ A modern, open-source Android Print Service plugin designed for the **Brother HL
 
 ## Features
 
-- **Native Android Print Service:** Integrated into the system-level Android print menu.
+- **Native Android Print Service:** Integrated directly into the system-level Android print menu.
+- **Hidden Launcher Icon:** Runs as a clean background service plugin without cluttering your home screen or app drawer.
 - **IPP Protocol Support:** Sends PDF documents directly to the printer over IPP (Port 80 / 631).
 - **Subnet Auto-Discovery:** Automatically scans your local `/24` Wi-Fi subnet to discover connected printers.
-- **Modern Material 3 UI:** Clean dark theme UI with Jetpack Compose.
+- **Modern Material 3 UI:** Clean dark theme UI with Jetpack Compose cards and dropdowns.
+- **Advanced IPP Attributes:** Supports Duplex, Paper Trays, Resolution (300/600/1200 DPI), and Toner Density/Darkness (Eco/Normal/Dark).
 - **Wi-Fi Network Binding:** Ensures local network connections bypass system proxies or mobile data routing.
 - **Localization:** Full support for German (`de`) and English (`en`).
 - **Built-in Diagnostics:**
@@ -36,15 +38,14 @@ A modern, open-source Android Print Service plugin designed for the **Brother HL
 
 ## Getting Started
 
-1. Clone or download this repository.
-2. Open the project in **Android Studio**.
-3. Build and install the app on your Android device (`./gradlew assembleDebug`).
-4. Open the **BrotherHL6180DW** app:
-   - Enter your printer's IP address (e.g. `192.168.10.160`) and Port (`80` or `631`).
-   - Click **Save Settings** (`Speichern`).
-   - Use **Test Connection** or **Drucktest** to verify connectivity.
-5. In Android System Settings, navigate to **Connected devices > Connection preferences > Printing**, ensure **Brother HL-6180DW** is turned **On**.
-6. Print any document or image from any Android app via the standard system **Print** action.
+1. Download and install the APK on your Android device.
+2. In Android System Settings, navigate to **Connected devices > Connection preferences > Printing** (or search for *"Printing"* in Android Settings).
+3. Tap **Brother HL-6180DW** and turn the service **On**.
+4. Tap **Printer Settings** (or the gear icon) to configure:
+   - Printer IP address (e.g. `192.168.10.160`) and Port (`80` or `631`).
+   - Default Duplex mode, Paper Tray, Resolution, and Toner Density.
+   - Test Connection or run a **Drucktest**.
+5. Print any document or image from any Android app (Chrome, Gallery, PDF Viewer) via the standard system **Print** action.
 
 ---
 
