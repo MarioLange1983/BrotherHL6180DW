@@ -37,4 +37,8 @@
     <string name="quality_eco">300 DPI (Eco)</string>
     <string name="quality_normal">600 DPI</string>
     <string name="quality_high">HQ1200</string>
+    <string name="label_density">Toner Density / Darkness</string>
+    <string name="density_light">Light (Save Toner)</string>
+    <string name="density_medium">Medium (Normal)</string>
+    <string name="density_dark">Dark (Deep Black)</string>
 </resources>

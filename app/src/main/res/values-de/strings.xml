@@ -37,4 +37,8 @@
     <string name="quality_eco">300 DPI (Spar)</string>
     <string name="quality_normal">600 DPI</string>
     <string name="quality_high">HQ1200</string>
+    <string name="label_density">Toner-Intensität / Dichte</string>
+    <string name="density_light">Hell (Toner sparen)</string>
+    <string name="density_medium">Mittel (Normal)</string>
+    <string name="density_dark">Dunkel (Kräftig)</string>
 </resources>

@@ -186,6 +186,7 @@ class Hl6180dwPrintService : PrintService() {
             val defaultDuplex = sharedPrefs.getString("default_duplex", "one-sided") ?: "one-sided"
             val defaultTray = sharedPrefs.getString("default_tray", "auto") ?: "auto"
             val defaultQuality = sharedPrefs.getString("default_quality", "600dpi") ?: "600dpi"
+            val defaultDensity = sharedPrefs.getString("default_density", "medium") ?: "medium"
 
             // 1. Copies
             val copies = printJob.info.copies
@@ -237,6 +238,19 @@ class Hl6180dwPrintService : PrintService() {
                 else -> 4 // Normal
             }
             writeIppEnum(os, "print-quality", qualityEnum)
+
+            // 6. Toner Density / Darkness (print-darkness)
+            val darknessValue = when (defaultDensity) {
+                "light" -> 30
+                "dark" -> 80
+                else -> 50
+            }
+            writeIppInteger(os, "print-darkness", darknessValue)
+            if (defaultDensity == "light") {
+                writeIppAttribute(os, 0x44, "toner-save-mode", "on")
+            } else {
+                writeIppAttribute(os, 0x44, "toner-save-mode", "off")
+            }
 
             // End of Attributes Tag (0x03)
             os.write(0x03)

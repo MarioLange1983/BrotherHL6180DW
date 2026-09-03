@@ -90,6 +90,7 @@ class SettingsActivity : ComponentActivity() {
         var defaultDuplex by remember { mutableStateOf(sharedPrefs.getString("default_duplex", "one-sided") ?: "one-sided") }
         var defaultTray by remember { mutableStateOf(sharedPrefs.getString("default_tray", "auto") ?: "auto") }
         var defaultQuality by remember { mutableStateOf(sharedPrefs.getString("default_quality", "600dpi") ?: "600dpi") }
+        var defaultDensity by remember { mutableStateOf(sharedPrefs.getString("default_density", "medium") ?: "medium") }
 
         var status by remember { mutableStateOf("") }
         var isScanning by remember { mutableStateOf(false) }
@@ -149,7 +150,7 @@ class SettingsActivity : ComponentActivity() {
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
-                                onClick = { saveSettings(ipAddress, port, defaultDuplex, defaultTray, defaultQuality) },
+                                onClick = { saveSettings(ipAddress, port, defaultDuplex, defaultTray, defaultQuality, defaultDensity) },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(getString(R.string.save_settings))
@@ -222,6 +223,18 @@ class SettingsActivity : ComponentActivity() {
                                 "1200dpi" to getString(R.string.quality_high)
                             ),
                             onSelected = { defaultQuality = it }
+                        )
+
+                        // Density Dropdown
+                        DropdownSetting(
+                            label = getString(R.string.label_density),
+                            selectedValue = defaultDensity,
+                            options = listOf(
+                                "light" to getString(R.string.density_light),
+                                "medium" to getString(R.string.density_medium),
+                                "dark" to getString(R.string.density_dark)
+                            ),
+                            onSelected = { defaultDensity = it }
                         )
                     }
                 }
@@ -354,7 +367,7 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    private fun saveSettings(ip: String, portStr: String, duplex: String, tray: String, quality: String) {
+    private fun saveSettings(ip: String, portStr: String, duplex: String, tray: String, quality: String, density: String) {
         val port = portStr.toIntOrNull() ?: 80
         sharedPrefs.edit {
             putString("ip_address", ip)
@@ -362,6 +375,7 @@ class SettingsActivity : ComponentActivity() {
             putString("default_duplex", duplex)
             putString("default_tray", tray)
             putString("default_quality", quality)
+            putString("default_density", density)
         }
         Toast.makeText(this, getString(R.string.save_settings), Toast.LENGTH_SHORT).show()
     }
