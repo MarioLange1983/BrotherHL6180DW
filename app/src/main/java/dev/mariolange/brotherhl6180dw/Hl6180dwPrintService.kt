@@ -9,9 +9,7 @@ import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
 import android.os.ParcelFileDescriptor
 import android.util.Log
-import android.net.ConnectivityManager
 import kotlinx.coroutines.*
-import java.io.InputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
@@ -43,8 +41,18 @@ class Hl6180dwPrintService : PrintService() {
                     .setCapabilities(
                         PrinterCapabilitiesInfo.Builder(printerId)
                             .addMediaSize(PrintAttributes.MediaSize.ISO_A4, true)
-                            .addResolution(PrintAttributes.Resolution("300dpi", "300 DPI", 300, 300), true)
+                            .addMediaSize(PrintAttributes.MediaSize.NA_LETTER, false)
+                            .addMediaSize(PrintAttributes.MediaSize.ISO_A5, false)
+                            .addMediaSize(PrintAttributes.MediaSize.NA_LEGAL, false)
+                            .addMediaSize(PrintAttributes.MediaSize.ISO_B5, false)
+                            .addResolution(PrintAttributes.Resolution("600dpi", "600 DPI", 600, 600), true)
+                            .addResolution(PrintAttributes.Resolution("300dpi", "300 DPI (Eco)", 300, 300), false)
+                            .addResolution(PrintAttributes.Resolution("1200dpi", "HQ1200 (1200 DPI)", 1200, 1200), false)
                             .setColorModes(PrintAttributes.COLOR_MODE_MONOCHROME, PrintAttributes.COLOR_MODE_MONOCHROME)
+                            .setDuplexModes(
+                                PrintAttributes.DUPLEX_MODE_NONE or PrintAttributes.DUPLEX_MODE_LONG_EDGE or PrintAttributes.DUPLEX_MODE_SHORT_EDGE,
+                                PrintAttributes.DUPLEX_MODE_NONE
+                            )
                             .build()
                     )
                     .build()
@@ -172,7 +180,64 @@ class Hl6180dwPrintService : PrintService() {
             writeIppAttribute(os, 0x48, "attributes-natural-language", "en")
             writeIppAttribute(os, 0x45, "printer-uri", "ipp://$ip/ipp")
             writeIppAttribute(os, 0x42, "job-name", "Brother Print Job")
-            
+
+            // Read preferences for defaults
+            val sharedPrefs = getSharedPreferences("printer_settings", MODE_PRIVATE)
+            val defaultDuplex = sharedPrefs.getString("default_duplex", "one-sided") ?: "one-sided"
+            val defaultTray = sharedPrefs.getString("default_tray", "auto") ?: "auto"
+            val defaultQuality = sharedPrefs.getString("default_quality", "600dpi") ?: "600dpi"
+
+            // 1. Copies
+            val copies = printJob.info.copies
+            if (copies > 1) {
+                writeIppInteger(os, "copies", copies)
+            }
+
+            // 2. Duplex (Sides)
+            val duplexMode = printJob.info.attributes?.duplexMode
+            val sidesValue = when (duplexMode) {
+                PrintAttributes.DUPLEX_MODE_LONG_EDGE -> "two-sided-long-edge"
+                PrintAttributes.DUPLEX_MODE_SHORT_EDGE -> "two-sided-short-edge"
+                PrintAttributes.DUPLEX_MODE_NONE -> "one-sided"
+                else -> defaultDuplex
+            }
+            writeIppAttribute(os, 0x44, "sides", sidesValue)
+
+            // 3. Media (Paper Size)
+            val mediaSize = printJob.info.attributes?.mediaSize
+            val mediaValue = when {
+                mediaSize == PrintAttributes.MediaSize.NA_LETTER -> "na_letter_8.5x11in"
+                mediaSize == PrintAttributes.MediaSize.ISO_A5 -> "iso_a5_148x210mm"
+                mediaSize == PrintAttributes.MediaSize.NA_LEGAL -> "na_legal_8.5x14in"
+                mediaSize == PrintAttributes.MediaSize.ISO_B5 -> "iso_b5_176x250mm"
+                else -> "iso_a4_210x297mm"
+            }
+            writeIppAttribute(os, 0x44, "media", mediaValue)
+
+            // 4. Media Source (Paper Tray)
+            if (defaultTray != "auto") {
+                writeIppAttribute(os, 0x44, "media-source", defaultTray)
+            }
+
+            // 5. Resolution & Quality
+            val res = printJob.info.attributes?.resolution
+            val (xres, yres) = when {
+                res != null && res.id == "300dpi" -> 300 to 300
+                res != null && res.id == "1200dpi" -> 1200 to 1200
+                res != null && res.id == "600dpi" -> 600 to 600
+                defaultQuality == "300dpi" -> 300 to 300
+                defaultQuality == "1200dpi" -> 1200 to 1200
+                else -> 600 to 600
+            }
+            writeIppResolution(os, "printer-resolution", xres, yres)
+
+            val qualityEnum = when (xres) {
+                300 -> 3 // Draft
+                1200 -> 5 // High
+                else -> 4 // Normal
+            }
+            writeIppEnum(os, "print-quality", qualityEnum)
+
             // End of Attributes Tag (0x03)
             os.write(0x03)
             
@@ -203,6 +268,35 @@ class Hl6180dwPrintService : PrintService() {
         val valueBytes = value.toByteArray(StandardCharsets.UTF_8)
         os.write(ByteBuffer.allocate(2).putShort(valueBytes.size.toShort()).array())
         os.write(valueBytes)
+    }
+
+    private fun writeIppInteger(os: OutputStream, name: String, value: Int) {
+        os.write(0x21) // integer tag
+        val nameBytes = name.toByteArray(StandardCharsets.UTF_8)
+        os.write(ByteBuffer.allocate(2).putShort(nameBytes.size.toShort()).array())
+        os.write(nameBytes)
+        os.write(ByteBuffer.allocate(2).putShort(4.toShort()).array())
+        os.write(ByteBuffer.allocate(4).putInt(value).array())
+    }
+
+    private fun writeIppEnum(os: OutputStream, name: String, value: Int) {
+        os.write(0x23) // enum tag
+        val nameBytes = name.toByteArray(StandardCharsets.UTF_8)
+        os.write(ByteBuffer.allocate(2).putShort(nameBytes.size.toShort()).array())
+        os.write(nameBytes)
+        os.write(ByteBuffer.allocate(2).putShort(4.toShort()).array())
+        os.write(ByteBuffer.allocate(4).putInt(value).array())
+    }
+
+    private fun writeIppResolution(os: OutputStream, name: String, xres: Int, yres: Int, units: Byte = 3) {
+        os.write(0x32) // resolution tag
+        val nameBytes = name.toByteArray(StandardCharsets.UTF_8)
+        os.write(ByteBuffer.allocate(2).putShort(nameBytes.size.toShort()).array())
+        os.write(nameBytes)
+        os.write(ByteBuffer.allocate(2).putShort(9.toShort()).array())
+        os.write(ByteBuffer.allocate(4).putInt(xres).array())
+        os.write(ByteBuffer.allocate(4).putInt(yres).array())
+        os.write(units.toInt()) // 3 = dpi, 4 = dpcm
     }
 
     override fun onDestroy() {

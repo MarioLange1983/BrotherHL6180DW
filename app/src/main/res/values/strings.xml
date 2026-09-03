@@ -20,4 +20,21 @@
     <string name="test_print_result">Print Result: %1$d</string>
     <string name="test_print_error">Print Failed: %1$s</string>
     <string name="test_page_text">Brother HL-6180DW Test Page\nSuccessfully connected via IPP!\n</string>
+
+    <string name="section_connection">Connection &amp; Network</string>
+    <string name="section_default_settings">Default Print Options</string>
+    <string name="section_tools">Tools &amp; Diagnostics</string>
+    <string name="label_duplex">Duplex Printing</string>
+    <string name="duplex_off">Off (1-sided)</string>
+    <string name="duplex_long_edge">Long Edge</string>
+    <string name="duplex_short_edge">Short Edge</string>
+    <string name="label_tray">Paper Tray</string>
+    <string name="tray_auto">Auto</string>
+    <string name="tray_1">Tray 1</string>
+    <string name="tray_2">Tray 2</string>
+    <string name="tray_manual">Manual/MP</string>
+    <string name="label_quality">Quality / Resolution</string>
+    <string name="quality_eco">300 DPI (Eco)</string>
+    <string name="quality_normal">600 DPI</string>
+    <string name="quality_high">HQ1200</string>
 </resources>

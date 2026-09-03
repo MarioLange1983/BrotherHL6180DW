@@ -20,4 +20,21 @@
     <string name="test_print_result">Druckergebnis: %1$d</string>
     <string name="test_print_error">Druckfehler: %1$s</string>
     <string name="test_page_text">Brother HL-6180DW Drucktest\nErfolgreich verbunden via IPP!\n</string>
+
+    <string name="section_connection">Verbindung &amp; Netzwerk</string>
+    <string name="section_default_settings">Standard-Druckeinstellungen</string>
+    <string name="section_tools">Diagnose &amp; Tools</string>
+    <string name="label_duplex">Duplexdruck (Doppelseitig)</string>
+    <string name="duplex_off">Aus (Einseitig)</string>
+    <string name="duplex_long_edge">Lange Kante</string>
+    <string name="duplex_short_edge">Kurze Kante</string>
+    <string name="label_tray">Papierzufuhr / Schacht</string>
+    <string name="tray_auto">Auto</string>
+    <string name="tray_1">Kassette 1</string>
+    <string name="tray_2">Kassette 2</string>
+    <string name="tray_manual">Manuell (MF)</string>
+    <string name="label_quality">Druckqualität / Auflösung</string>
+    <string name="quality_eco">300 DPI (Spar)</string>
+    <string name="quality_normal">600 DPI</string>
+    <string name="quality_high">HQ1200</string>
 </resources>

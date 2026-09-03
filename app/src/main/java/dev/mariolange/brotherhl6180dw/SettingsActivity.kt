@@ -11,41 +11,17 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,7 +43,6 @@ import java.net.Socket
 import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import androidx.core.net.toUri
 
 class SettingsActivity : ComponentActivity() {
 
@@ -110,6 +86,11 @@ class SettingsActivity : ComponentActivity() {
     fun SettingsScreen() {
         var ipAddress by remember { mutableStateOf(sharedPrefs.getString("ip_address", "") ?: "") }
         var port by remember { mutableStateOf(sharedPrefs.getInt("port", 80).toString()) }
+        
+        var defaultDuplex by remember { mutableStateOf(sharedPrefs.getString("default_duplex", "one-sided") ?: "one-sided") }
+        var defaultTray by remember { mutableStateOf(sharedPrefs.getString("default_tray", "auto") ?: "auto") }
+        var defaultQuality by remember { mutableStateOf(sharedPrefs.getString("default_quality", "600dpi") ?: "600dpi") }
+
         var status by remember { mutableStateOf("") }
         var isScanning by remember { mutableStateOf(false) }
         var scanResults by remember { mutableStateOf(emptyList<String>()) }
@@ -132,128 +113,197 @@ class SettingsActivity : ComponentActivity() {
                 modifier = Modifier
                     .padding(padding)
                     .padding(16.dp)
-                    .fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                OutlinedTextField(
-                    value = ipAddress,
-                    onValueChange = { ipAddress = it },
-                    label = { Text(getString(R.string.ip_address_hint)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { port = it },
-                    label = { Text(getString(R.string.port_hint)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { saveSettings(ipAddress, port) },
-                        modifier = Modifier.weight(1f)
+                // Card 1: Connection & Network
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(getString(R.string.save_settings))
-                    }
-
-                    Button(
-                        onClick = { testConnection(ipAddress, port) { status = it } },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(getString(R.string.test_connection))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = { printTestPage(ipAddress, port) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Icon(Icons.Default.Print, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(getString(R.string.print_test_page))
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = {
-                        val ip = ipAddress.trim().removePrefix("http://").removePrefix("https://").substringBefore("/")
-                        val intent = Intent(Intent.ACTION_VIEW, "http://$ip".toUri())
-                        startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                ) {
-                    Text(getString(R.string.open_web_interface))
-                }
-
-                if (status.isNotEmpty()) {
-                    val isSuccess = status.contains("success", ignoreCase = true) || status.contains("erfolgreich", ignoreCase = true)
-                    Text(
-                        text = status,
-                        modifier = Modifier.padding(top = 8.dp),
-                        color = if (isSuccess) Color(0xFF2ECC71) else MaterialTheme.colorScheme.error
-                    )
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-                Button(
-                    onClick = {
-                        isScanning = true
-                        lifecycleScope.launch {
-                            val results = NetworkUtils.scanSubnet(this@SettingsActivity, port.toIntOrNull() ?: 80)
-                            scanResults = results
-                            isScanning = false
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isScanning,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    if (isScanning) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
+                        Text(
+                            text = getString(R.string.section_connection),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(getString(R.string.scanning))
-                    } else {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(getString(R.string.scan_subnet))
+
+                        OutlinedTextField(
+                            value = ipAddress,
+                            onValueChange = { ipAddress = it },
+                            label = { Text(getString(R.string.ip_address_hint)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                        )
+
+                        OutlinedTextField(
+                            value = port,
+                            onValueChange = { port = it },
+                            label = { Text(getString(R.string.port_hint)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { saveSettings(ipAddress, port, defaultDuplex, defaultTray, defaultQuality) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(getString(R.string.save_settings))
+                            }
+
+                            Button(
+                                onClick = { testConnection(ipAddress, port) { status = it } },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(getString(R.string.test_connection))
+                            }
+                        }
+
+                        if (status.isNotEmpty()) {
+                            val isSuccess = status.contains("success", ignoreCase = true) || status.contains("erfolgreich", ignoreCase = true)
+                            Text(
+                                text = status,
+                                modifier = Modifier.padding(top = 8.dp),
+                                color = if (isSuccess) Color(0xFF2ECC71) else MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
 
-                if (scanResults.isNotEmpty()) {
-                    Text(
-                        getString(R.string.found_printers),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp).align(Alignment.Start)
-                    )
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().weight(1f)
+                // Card 2: Default Print Options
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(scanResults) { result ->
-                            ListItem(
-                                headlineContent = { Text(result) },
-                                modifier = Modifier.clickable { 
-                                    ipAddress = result 
-                                    // Also set port to 80 if clicked
-                                    port = "80"
+                        Text(
+                            text = getString(R.string.section_default_settings),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+
+                        // Duplex Dropdown
+                        DropdownSetting(
+                            label = getString(R.string.label_duplex),
+                            selectedValue = defaultDuplex,
+                            options = listOf(
+                                "one-sided" to getString(R.string.duplex_off),
+                                "two-sided-long-edge" to getString(R.string.duplex_long_edge),
+                                "two-sided-short-edge" to getString(R.string.duplex_short_edge)
+                            ),
+                            onSelected = { defaultDuplex = it }
+                        )
+
+                        // Tray Dropdown
+                        DropdownSetting(
+                            label = getString(R.string.label_tray),
+                            selectedValue = defaultTray,
+                            options = listOf(
+                                "auto" to getString(R.string.tray_auto),
+                                "tray-1" to getString(R.string.tray_1),
+                                "tray-2" to getString(R.string.tray_2),
+                                "by-pass-tray" to getString(R.string.tray_manual)
+                            ),
+                            onSelected = { defaultTray = it }
+                        )
+
+                        // Quality Dropdown
+                        DropdownSetting(
+                            label = getString(R.string.label_quality),
+                            selectedValue = defaultQuality,
+                            options = listOf(
+                                "300dpi" to getString(R.string.quality_eco),
+                                "600dpi" to getString(R.string.quality_normal),
+                                "1200dpi" to getString(R.string.quality_high)
+                            ),
+                            onSelected = { defaultQuality = it }
+                        )
+                    }
+                }
+
+                // Card 3: Tools & Diagnostics
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = getString(R.string.section_tools),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+
+                        Button(
+                            onClick = { printTestPage(ipAddress, port) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                        ) {
+                            Icon(Icons.Default.Print, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(getString(R.string.print_test_page))
+                        }
+
+                        Button(
+                            onClick = {
+                                val ip = ipAddress.trim().removePrefix("http://").removePrefix("https://").substringBefore("/")
+                                val intent = Intent(Intent.ACTION_VIEW, "http://$ip".toUri())
+                                startActivity(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Text(getString(R.string.open_web_interface))
+                        }
+
+                        Button(
+                            onClick = {
+                                isScanning = true
+                                lifecycleScope.launch {
+                                    val results = NetworkUtils.scanSubnet(this@SettingsActivity, port.toIntOrNull() ?: 80)
+                                    scanResults = results
+                                    isScanning = false
                                 }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isScanning,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            if (isScanning) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(getString(R.string.scanning))
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(getString(R.string.scan_subnet))
+                            }
+                        }
+
+                        if (scanResults.isNotEmpty()) {
+                            Text(
+                                getString(R.string.found_printers),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 8.dp)
                             )
+                            scanResults.forEach { result ->
+                                ListItem(
+                                    headlineContent = { Text(result) },
+                                    modifier = Modifier.clickable { 
+                                        ipAddress = result 
+                                        port = "80"
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -261,11 +311,57 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    private fun saveSettings(ip: String, portStr: String) {
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun DropdownSetting(
+        label: String,
+        selectedValue: String,
+        options: List<Pair<String, String>>,
+        onSelected: (String) -> Unit
+    ) {
+        var expanded by remember { mutableStateOf(false) }
+        val currentDisplay = options.firstOrNull { it.first == selectedValue }?.second ?: selectedValue
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = currentDisplay,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(label) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { (key, display) ->
+                    DropdownMenuItem(
+                        text = { Text(display) },
+                        onClick = {
+                            onSelected(key)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    private fun saveSettings(ip: String, portStr: String, duplex: String, tray: String, quality: String) {
         val port = portStr.toIntOrNull() ?: 80
         sharedPrefs.edit {
             putString("ip_address", ip)
             putInt("port", port)
+            putString("default_duplex", duplex)
+            putString("default_tray", tray)
+            putString("default_quality", quality)
         }
         Toast.makeText(this, getString(R.string.save_settings), Toast.LENGTH_SHORT).show()
     }
@@ -286,7 +382,7 @@ class SettingsActivity : ComponentActivity() {
         lifecycleScope.launch {
             val wifiNetwork = NetworkUtils.getWifiNetwork(this@SettingsActivity)
             val localIp = NetworkUtils.getLocalIpAddress(this@SettingsActivity)
-            Log.d(TAG, "Starting test. WiFi: ${wifiNetwork != null}, IP: $localIp")
+            Log.d(TAG, "Device: ${Build.MODEL}, Local IP: $localIp, WiFi: ${wifiNetwork != null}")
 
             val success = withContext(Dispatchers.IO) {
                 try {
