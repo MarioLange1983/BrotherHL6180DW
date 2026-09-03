@@ -41,4 +41,13 @@
     <string name="density_light">Light (Save Toner)</string>
     <string name="density_medium">Medium (Normal)</string>
     <string name="density_dark">Dark (Deep Black)</string>
+
+    <string name="section_printer_status">Live Printer Status</string>
+    <string name="status_state">Status: %1$s</string>
+    <string name="status_toner">Toner: %1$d%% (%2$s)</string>
+    <string name="status_queue">Queue: %1$d jobs | Accepting jobs: %2$s</string>
+    <string name="status_speed">Speed: %1$d ppm</string>
+    <string name="btn_refresh_status">Refresh Status</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
 </resources>

@@ -41,4 +41,13 @@
     <string name="density_light">Hell (Toner sparen)</string>
     <string name="density_medium">Mittel (Normal)</string>
     <string name="density_dark">Dunkel (Kräftig)</string>
+
+    <string name="section_printer_status">Live Drucker-Status</string>
+    <string name="status_state">Status: %1$s</string>
+    <string name="status_toner">Toner: %1$d%% (%2$s)</string>
+    <string name="status_queue">Warteschlange: %1$d Jobs | Annahme: %2$s</string>
+    <string name="status_speed">Geschwindigkeit: %1$d S./Min.</string>
+    <string name="btn_refresh_status">Status aktualisieren</string>
+    <string name="yes">Ja</string>
+    <string name="no">Nein</string>
 </resources>

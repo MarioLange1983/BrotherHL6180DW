@@ -92,9 +92,28 @@ class SettingsActivity : ComponentActivity() {
         var defaultQuality by remember { mutableStateOf(sharedPrefs.getString("default_quality", "600dpi") ?: "600dpi") }
         var defaultDensity by remember { mutableStateOf(sharedPrefs.getString("default_density", "medium") ?: "medium") }
 
+        var printerInfo by remember { mutableStateOf<PrinterIppInfo?>(null) }
+        var isFetchingInfo by remember { mutableStateOf(false) }
+
         var status by remember { mutableStateOf("") }
         var isScanning by remember { mutableStateOf(false) }
         var scanResults by remember { mutableStateOf(emptyList<String>()) }
+
+        fun refreshPrinterInfo() {
+            val cleanIp = ipAddress.trim().removePrefix("http://").removePrefix("https://").substringBefore("/")
+            if (cleanIp.isNotBlank()) {
+                isFetchingInfo = true
+                lifecycleScope.launch {
+                    val info = NetworkUtils.fetchPrinterIppInfo(this@SettingsActivity, cleanIp, port.toIntOrNull() ?: 80)
+                    printerInfo = info
+                    isFetchingInfo = false
+                }
+            }
+        }
+
+        LaunchedEffect(ipAddress, port) {
+            refreshPrinterInfo()
+        }
 
         Scaffold(
             topBar = {
@@ -119,6 +138,91 @@ class SettingsActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Card 0: Live Printer Status
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = getString(R.string.section_printer_status),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                            IconButton(onClick = { refreshPrinterInfo() }, enabled = !isFetchingInfo) {
+                                if (isFetchingInfo) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = null)
+                                }
+                            }
+                        }
+
+                        val info = printerInfo
+                        if (info != null && info.makeAndModel.isNotBlank()) {
+                            Text(
+                                text = info.makeAndModel,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            val statusColor = when (info.stateCode) {
+                                3 -> Color(0xFF2ECC71) // Idle / Bereit
+                                4 -> Color(0xFFF1C40F) // Processing / Druckt
+                                else -> MaterialTheme.colorScheme.error
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = getString(R.string.status_state, info.printerState),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = statusColor
+                                )
+                                Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = getString(R.string.status_speed, info.speedPpm),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            val level = info.tonerLevel
+                            if (level != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = getString(R.string.status_toner, level, info.tonerName),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                LinearProgressIndicator(
+                                    progress = { level / 100f },
+                                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                                    color = if (level < 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                )
+                            }
+
+                            val acceptText = if (info.acceptingJobs) getString(R.string.yes) else getString(R.string.no)
+                            Text(
+                                text = getString(R.string.status_queue, info.queuedJobs, acceptText),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = if (ipAddress.isBlank()) "Keine IP eingegeben" else "Status wird geladen oder Drucker offline...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
                 // Card 1: Connection & Network
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
@@ -150,14 +254,20 @@ class SettingsActivity : ComponentActivity() {
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
-                                onClick = { saveSettings(ipAddress, port, defaultDuplex, defaultTray, defaultQuality, defaultDensity) },
+                                onClick = { 
+                                    saveSettings(ipAddress, port, defaultDuplex, defaultTray, defaultQuality, defaultDensity)
+                                    refreshPrinterInfo()
+                                },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(getString(R.string.save_settings))
                             }
 
                             Button(
-                                onClick = { testConnection(ipAddress, port) { status = it } },
+                                onClick = { 
+                                    testConnection(ipAddress, port) { status = it }
+                                    refreshPrinterInfo()
+                                },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(getString(R.string.test_connection))
@@ -314,6 +424,7 @@ class SettingsActivity : ComponentActivity() {
                                     modifier = Modifier.clickable { 
                                         ipAddress = result 
                                         port = "80"
+                                        refreshPrinterInfo()
                                     }
                                 )
                             }

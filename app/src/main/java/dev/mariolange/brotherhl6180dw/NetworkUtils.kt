@@ -9,12 +9,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.Socket
 import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 
 object NetworkUtils {
     private const val TAG = "NetworkUtils"
@@ -29,6 +32,55 @@ object NetworkUtils {
             }
         }
         return null
+    }
+
+    suspend fun fetchPrinterIppInfo(context: Context, ip: String, port: Int): PrinterIppInfo? = withContext(Dispatchers.IO) {
+        try {
+            val wifiNetwork = getWifiNetwork(context)
+            val protocol = if (port == 443) "https" else "http"
+            val url = URL("$protocol://$ip:$port/ipp")
+
+            val connection = if (wifiNetwork != null) {
+                wifiNetwork.openConnection(url, Proxy.NO_PROXY) as HttpURLConnection
+            } else {
+                url.openConnection(Proxy.NO_PROXY) as HttpURLConnection
+            }
+
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 4000
+            connection.readTimeout = 4000
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/ipp")
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+
+            connection.outputStream.use { os ->
+                // IPP Get-Printer-Attributes
+                os.write(byteArrayOf(0x01, 0x01, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x01))
+                os.write(0x01)
+                writeIppAttribute(os, 0x47, "attributes-charset", "utf-8")
+                writeIppAttribute(os, 0x48, "attributes-natural-language", "en")
+                writeIppAttribute(os, 0x45, "printer-uri", "ipp://$ip/ipp")
+                os.write(0x03)
+            }
+
+            if (connection.responseCode in 200..299) {
+                connection.inputStream.use { isStream ->
+                    IppResponseParser.parsePrinterAttributes(isStream)
+                }
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun writeIppAttribute(os: OutputStream, tag: Int, name: String, value: String) {
+        os.write(tag)
+        val nameBytes = name.toByteArray(StandardCharsets.UTF_8)
+        os.write(ByteBuffer.allocate(2).putShort(nameBytes.size.toShort()).array())
+        os.write(nameBytes)
+        val valueBytes = value.toByteArray(StandardCharsets.UTF_8)
+        os.write(ByteBuffer.allocate(2).putShort(valueBytes.size.toShort()).array())
+        os.write(valueBytes)
     }
 
     suspend fun scanSubnet(context: Context, port: Int): List<String> = withContext(Dispatchers.IO) {
