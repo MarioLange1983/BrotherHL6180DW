@@ -19,6 +19,13 @@ import java.net.URL
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
+data class PrintJobOptions(
+    val copies: Int = 1,
+    val duplexMode: Int = PrintAttributes.DUPLEX_MODE_NONE,
+    val mediaSize: PrintAttributes.MediaSize? = null,
+    val resolution: PrintAttributes.Resolution? = null
+)
+
 class Hl6180dwPrintService : PrintService() {
 
     private val TAG = "Hl6180dwPrintService"
@@ -94,24 +101,33 @@ class Hl6180dwPrintService : PrintService() {
             return
         }
 
+        // Must extract PrintJob properties on the Main Thread!
         val document = printJob.document
         val pfd = document.data ?: run {
             printJob.fail("No data in print job")
             return
         }
 
+        val printJobInfo = printJob.info
+        val options = PrintJobOptions(
+            copies = printJobInfo.copies,
+            duplexMode = printJobInfo.attributes?.duplexMode ?: PrintAttributes.DUPLEX_MODE_NONE,
+            mediaSize = printJobInfo.attributes?.mediaSize,
+            resolution = printJobInfo.attributes?.resolution
+        )
+
         serviceScope.launch {
             try {
                 if (port == 631 || port == 80 || port == 443) {
                     try {
-                        sendViaIpp(ip, port, pfd, printJob)
+                        sendViaIpp(ip, port, pfd, options)
                     } catch (e: Exception) {
                         Log.e(TAG, "IPP on $port failed, trying port 80 fallback", e)
-                        if (port != 80) sendViaIpp(ip, 80, pfd, printJob) else throw e
+                        if (port != 80) sendViaIpp(ip, 80, pfd, options) else throw e
                     }
                 } else {
                     Log.d(TAG, "Sending job via RAW")
-                    sendViaRaw(ip, port, pfd, printJob)
+                    sendViaRaw(ip, port, pfd)
                 }
                 withContext(Dispatchers.Main) {
                     printJob.complete()
@@ -127,7 +143,7 @@ class Hl6180dwPrintService : PrintService() {
         }
     }
 
-    private fun sendViaRaw(ip: String, port: Int, pfd: ParcelFileDescriptor, printJob: PrintJob) {
+    private fun sendViaRaw(ip: String, port: Int, pfd: ParcelFileDescriptor) {
         val wifiNetwork = NetworkUtils.getWifiNetwork(this)
         Log.d(TAG, "Sending job via RAW to $ip:$port. WiFi Network: ${wifiNetwork != null}")
         
@@ -148,7 +164,7 @@ class Hl6180dwPrintService : PrintService() {
         }
     }
 
-    private fun sendViaIpp(ip: String, port: Int, pfd: ParcelFileDescriptor, printJob: PrintJob) {
+    private fun sendViaIpp(ip: String, port: Int, pfd: ParcelFileDescriptor, options: PrintJobOptions) {
         val protocol = if (port == 443) "https" else "http"
         val url = URL("$protocol://$ip:$port/ipp")
         val wifiNetwork = NetworkUtils.getWifiNetwork(this)
@@ -189,13 +205,13 @@ class Hl6180dwPrintService : PrintService() {
             val defaultDensity = sharedPrefs.getString("default_density", "medium") ?: "medium"
 
             // 1. Copies
-            val copies = printJob.info.copies
+            val copies = options.copies
             if (copies > 1) {
                 writeIppInteger(os, "copies", copies)
             }
 
             // 2. Duplex (Sides)
-            val duplexMode = printJob.info.attributes?.duplexMode
+            val duplexMode = options.duplexMode
             val sidesValue = when (duplexMode) {
                 PrintAttributes.DUPLEX_MODE_LONG_EDGE -> "two-sided-long-edge"
                 PrintAttributes.DUPLEX_MODE_SHORT_EDGE -> "two-sided-short-edge"
@@ -205,7 +221,7 @@ class Hl6180dwPrintService : PrintService() {
             writeIppAttribute(os, 0x44, "sides", sidesValue)
 
             // 3. Media (Paper Size)
-            val mediaSize = printJob.info.attributes?.mediaSize
+            val mediaSize = options.mediaSize
             val mediaValue = when {
                 mediaSize == PrintAttributes.MediaSize.NA_LETTER -> "na_letter_8.5x11in"
                 mediaSize == PrintAttributes.MediaSize.ISO_A5 -> "iso_a5_148x210mm"
@@ -221,7 +237,7 @@ class Hl6180dwPrintService : PrintService() {
             }
 
             // 5. Resolution & Quality
-            val res = printJob.info.attributes?.resolution
+            val res = options.resolution
             val (xres, yres) = when {
                 res != null && res.id == "300dpi" -> 300 to 300
                 res != null && res.id == "1200dpi" -> 1200 to 1200
